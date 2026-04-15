@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Super Dash: Neon Night</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #050505;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            touch-action: none;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            user-select: none;
+            transform-origin: center center;
+        }
+
+        #gameCanvas {
+            border: 4px solid #0ff;
+            background: linear-gradient(to bottom, #02000d 0%, #0d0020 50%, #1a0033 100%);
+            box-shadow: 0 0 20px #0ff, inset 0 0 20px #0ff;
+            display: block;
+        }
+
+        #scoreBoard {
+            position: absolute;
+            top: 30px;
+            width: 100%;
+            text-align: center;
+            color: #fff;
+            font-size: 40px;
+            font-weight: bold;
+            text-shadow: 0 0 5px #f0f, 0 0 10px #f0f, 0 0 20px #f0f;
+            pointer-events: none;
+            z-index: 10;
+            display: none;
+        }
+
+        .menu-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 400px;
+            height: 600px;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            text-align: center;
+        }
+
+        .menu-title {
+            color: #fff;
+            font-size: 42px;
+            margin-bottom: 20px;
+            text-shadow: 0 0 5px #0ff, 0 0 15px #0ff, 0 0 30px #0ff;
+            letter-spacing: 2px;
+        }
+
+        .instructions {
+            color: #0ff;
+            font-size: 14px;
+            margin-bottom: 30px;
+            line-height: 1.6;
+            background: rgba(0, 255, 255, 0.1);
+            padding: 10px;
+            border: 1px solid #0ff;
+            box-shadow: 0 0 10px #0ff inset;
+            border-radius: 5px;
+            text-shadow: 0 0 5px #0ff;
+        }
+
+        .btn {
+            background: transparent;
+            color: #f0f;
+            border: 2px solid #f0f;
+            padding: 15px 40px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 8px;
+            cursor: pointer;
+            width: 220px;
+            transition: all 0.2s;
+            box-shadow: 0 0 10px #f0f, inset 0 0 10px #f0f;
+            text-shadow: 0 0 5px #f0f;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            background: #f0f;
+            color: #fff;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #f0f, inset 0 0 20px #f0f;
+            text-shadow: none;
+        }
+
+        #pauseBtn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: transparent;
+            color: #39ff14;
+            border: 1px solid #39ff14;
+            box-shadow: 0 0 5px #39ff14, inset 0 0 5px #39ff14;
+            text-shadow: 0 0 3px #39ff14;
+            padding: 8px 12px;
+            cursor: pointer;
+            z-index: 15;
+            display: none;
+        }
+        
+        #pauseBtn:hover {
+            background: #39ff14;
+            color: #000;
+            text-shadow: none;
+        }
+
+        @keyframes pulseLoad {
+            0%, 100% { opacity: 1; text-shadow: 0 0 5px #0ff, 0 0 15px #0ff, 0 0 30px #0ff; }
+            50% { opacity: 0.5; text-shadow: 0 0 2px #0ff; }
+        }
+
+        .loading-text {
+            color: #fff;
+            font-size: 36px;
+            animation: pulseLoad 1.2s infinite;
+            letter-spacing: 4px;
+            text-shadow: 0 0 5px #0ff, 0 0 15px #0ff, 0 0 30px #0ff;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gameContainer">
+        <div id="scoreBoard">Score: 0</div>
+        <button id="pauseBtn">PAUSE (P)</button>
+        
+        <div id="startMenu" class="menu-overlay">
+            <h1 class="menu-title">SUPER<br>DASH</h1>
+            <div class="instructions">
+                PC: Space/Up to Dash | P to Pause<br>
+                MOBILE: Tap Screen to Dash
+            </div>
+            <button class="btn" id="playBtn">START GAME</button>
+            <button class="btn" onclick="quitGame()">QUIT</button>
+        </div>
+
+        <div id="loadingMenu" class="menu-overlay" style="display: none;">
+            <h1 class="loading-text">LOADING...</h1>
+        </div>
+
+        <div id="pauseMenu" class="menu-overlay" style="display: none;">
+            <h1 class="menu-title">PAUSED</h1>
+            <button class="btn" id="resumeBtn">RESUME</button>
+            <button class="btn" onclick="showStartMenu()">QUIT TO TITLE</button>
+        </div>
+
+        <div id="gameOverMenu" class="menu-overlay" style="display: none;">
+            <h1 class="menu-title" style="color: #fff; text-shadow: 0 0 10px #f00, 0 0 20px #f00, 0 0 30px #f00;">CRASHED!</h1>
+            <div id="finalScore" style="color: #fff; text-shadow: 0 0 10px #fff; font-size: 24px; margin-bottom: 20px;">Score: 0</div>
+            <button class="btn" id="restartBtn">TRY AGAIN</button>
+            <button class="btn" onclick="showStartMenu()">QUIT TO TITLE</button>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+<script>
+    // --- Responsive Scaling Logic ---
+    function resizeGame() {
+        const container = document.getElementById('gameContainer');
+        const scaleX = window.innerWidth / 400;
+        const scaleY = window.innerHeight / 600;
+        // Use 0.98 to provide a slight margin so the neon borders aren't clipped on edges
+        const scale = Math.min(scaleX, scaleY) * 0.98;
+        container.style.transform = `scale(${scale})`;
+    }
+
+    window.addEventListener('resize', resizeGame);
+    resizeGame(); // Initial trigger on load
+    // --------------------------------
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreElement = document.getElementById('scoreBoard');
+    const startMenu = document.getElementById('startMenu');
+    const loadingMenu = document.getElementById('loadingMenu');
+    const pauseMenu = document.getElementById('pauseMenu');
+    const gameOverMenu = document.getElementById('gameOverMenu');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const finalScoreTxt = document.getElementById('finalScore');
+
+    canvas.width = 400;
+    canvas.height = 600;
+
+    let score = 0;
+    let gameActive = false;
+    let isPaused = false;
+    let bgOffset = 0;
+    
+    // 2D City Background Variables
+    let cityOffset1 = 0;
+    let cityOffset2 = 0;
+    const cityLayer1 = [];
+    const cityLayer2 = [];
+    let cityLayer1Width = 0;
+    let cityLayer2Width = 0;
+    
+    // Generate static city silhouettes to draw in parallax
+    for (let i = 0; i < 20; i++) {
+        let w1 = 40 + Math.random() * 50;
+        let h1 = 150 + Math.random() * 200;
+        cityLayer1.push({ w: w1, h: h1 });
+        cityLayer1Width += w1;
+
+        let w2 = 50 + Math.random() * 60;
+        let h2 = 80 + Math.random() * 150;
+        cityLayer2.push({ w: w2, h: h2 });
+        cityLayer2Width += w2;
+    }
+
+    let currentSpeed = 2;
+    let currentGap = 200;
+    let spawnRate = 130;
+    let frameCount = 0;
+    let animationId = null;
+
+    let imagesLoaded = 0;
+    const playerImg = new Image();
+    playerImg.src = 'superman.jpg';
+    playerImg.onload = () => imagesLoaded++;
+    playerImg.onerror = () => { console.log("Superhero image not found, using placeholder"); imagesLoaded++; };
+
+    const player = {
+        x: 50,
+        y: 250,
+        width: 50,  
+        height: 60,
+        gravity: 0.18,
+        lift: -4.8, 
+        velocity: 0
+    };
+
+    let buildings = [];
+    const buildingWidth = 80;
+
+    function createBuilding() {
+        const buffer = 100;
+        const dynamicGap = Math.max(160, currentGap);
+        const topHeight = Math.floor(Math.random() * (canvas.height - dynamicGap - (buffer * 2))) + buffer;
+        
+        const neonColors = ['#00f2ff', '#ff0055', '#39ff14', '#ffff00', '#bf00ff'];
+        const bColor = neonColors[Math.floor(Math.random() * neonColors.length)];
+
+        buildings.push({
+            x: canvas.width,
+            top: topHeight,
+            bottom: canvas.height - topHeight - dynamicGap,
+            passed: false,
+            color: bColor
+        });
+    }
+
+    function handleStartSequence() {
+        startMenu.style.display = 'none';
+        gameOverMenu.style.display = 'none';
+        scoreElement.style.display = 'none';
+        pauseBtn.style.display = 'none';
+        loadingMenu.style.display = 'flex';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const finalizeStart = () => {
+            // Fake delay so the user always sees the cool loading screen for at least 1.5s
+            setTimeout(() => {
+                loadingMenu.style.display = 'none';
+                startGame();
+            }, 1500); 
+        };
+
+        if (playerImg.complete) {
+            finalizeStart();
+        } else {
+            // Poll until the image is completely downloaded
+            const checkInterval = setInterval(() => {
+                if (playerImg.complete) {
+                    clearInterval(checkInterval);
+                    finalizeStart();
+                }
+            }, 100);
+        }
+    }
+
+    function startGame() {
+        cancelAnimationFrame(animationId);
+        startMenu.style.display = 'none';
+        pauseMenu.style.display = 'none';
+        gameOverMenu.style.display = 'none';
+        loadingMenu.style.display = 'none';
+        scoreElement.style.display = 'block';
+        pauseBtn.style.display = 'block';
+        
+        resetState();
+        gameActive = true;
+        isPaused = false;
+        loop();
+    }
+
+    function resumeGame() {
+        pauseMenu.style.display = 'none';
+        isPaused = false;
+        loop();
+    }
+
+    function triggerGameOver() {
+        gameActive = false;
+        cancelAnimationFrame(animationId);
+        pauseBtn.style.display = 'none';
+        finalScoreTxt.innerText = "Final Score: " + score;
+        gameOverMenu.style.display = 'flex';
+    }
+
+    function togglePause() {
+        if(!gameActive) return;
+        isPaused = !isPaused;
+        pauseMenu.style.display = isPaused ? 'flex' : 'none';
+        if(!isPaused) {
+            cancelAnimationFrame(animationId);
+            loop();
+        }
+    }
+
+    function showStartMenu() {
+        gameActive = false;
+        cancelAnimationFrame(animationId);
+        isPaused = false;
+        pauseMenu.style.display = 'none';
+        gameOverMenu.style.display = 'none';
+        loadingMenu.style.display = 'none';
+        startMenu.style.display = 'flex';
+        scoreElement.style.display = 'none';
+        pauseBtn.style.display = 'none';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function quitGame() {
+        window.location.href = "https://ravindra0105-1.github.io/Retro_Lite_Neon_Games/";
+    }
+
+    function resetState() {
+        player.y = 250;
+        player.velocity = 0;
+        buildings = [];
+        score = 0;
+        frameCount = 0;
+        bgOffset = 0;
+        cityOffset1 = 0;
+        cityOffset2 = 0;
+        currentSpeed = 2;
+        currentGap = 200;
+        spawnRate = 130;
+        scoreElement.innerText = "Score: 0";
+        createBuilding();
+    }
+
+    function handleAction(e) {
+        if (e && e.type === 'touchstart') e.preventDefault();
+        if (e && e.target.tagName === 'BUTTON') return;
+        
+        if (gameActive && !isPaused) {
+            player.velocity = player.lift;
+        }
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowUp') handleAction();
+        if (e.code === 'KeyP') togglePause();
+    });
+
+    canvas.addEventListener('touchstart', handleAction, {passive: false});
+    canvas.addEventListener('mousedown', handleAction);
+
+    document.getElementById('playBtn').onclick = handleStartSequence;
+    document.getElementById('restartBtn').onclick = handleStartSequence;
+    document.getElementById('resumeBtn').onclick = resumeGame;
+    pauseBtn.onclick = (e) => { e.stopPropagation(); togglePause(); };
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 2D City Parallax Layer 1 (Slowest - Background)
+        cityOffset1 = (cityOffset1 + (currentSpeed * 0.08)) % cityLayer1Width;
+        ctx.fillStyle = "#08001a"; 
+        ctx.strokeStyle = "#1a0033";
+        ctx.lineWidth = 1;
+        for (let j = 0; j < 2; j++) {
+            let currentX = -cityOffset1 + (j * cityLayer1Width);
+            for (let i = 0; i < cityLayer1.length; i++) {
+                ctx.fillRect(currentX, canvas.height - cityLayer1[i].h, cityLayer1[i].w, cityLayer1[i].h);
+                ctx.strokeRect(currentX, canvas.height - cityLayer1[i].h, cityLayer1[i].w, cityLayer1[i].h);
+                currentX += cityLayer1[i].w;
+            }
+        }
+
+        // 2D City Parallax Layer 2 (Medium Speed - Midground)
+        cityOffset2 = (cityOffset2 + (currentSpeed * 0.15)) % cityLayer2Width;
+        ctx.fillStyle = "#0d0026"; 
+        ctx.strokeStyle = "#240047";
+        ctx.lineWidth = 1;
+        for (let j = 0; j < 2; j++) {
+            let currentX = -cityOffset2 + (j * cityLayer2Width);
+            for (let i = 0; i < cityLayer2.length; i++) {
+                ctx.fillRect(currentX, canvas.height - cityLayer2[i].h, cityLayer2[i].w, cityLayer2[i].h);
+                ctx.strokeRect(currentX, canvas.height - cityLayer2[i].h, cityLayer2[i].w, cityLayer2[i].h);
+                
+                // Draw some random background windows
+                if (i % 3 === 0) {
+                    ctx.fillStyle = "rgba(0, 242, 255, 0.15)";
+                    ctx.fillRect(currentX + 10, canvas.height - cityLayer2[i].h + 20, 8, 12);
+                    ctx.fillRect(currentX + cityLayer2[i].w - 20, canvas.height - cityLayer2[i].h + 50, 8, 12);
+                    ctx.fillStyle = "#0d0026"; // Reset color
+                }
+                currentX += cityLayer2[i].w;
+            }
+        }
+
+        // Neon Parallax Background (Foreground Grid/Floor)
+        bgOffset = (bgOffset + (currentSpeed * 0.25)) % 80;
+        ctx.fillStyle = "rgba(255, 0, 255, 0.1)"; 
+        for(let i=0; i<7; i++) {
+            ctx.fillRect(i * 80 - bgOffset, 450, 40, 150);
+            ctx.strokeStyle = "rgba(255, 0, 255, 0.3)";
+            ctx.strokeRect(i * 80 - bgOffset, 450, 40, 150);
+        }
+
+        // Neon Coloured Buildings (Obstacles)
+        buildings.forEach(b => {
+            // Draw base building shapes
+            ctx.fillStyle = "#050510"; // Dark solid background for buildings
+            ctx.fillRect(b.x, 0, buildingWidth, b.top);
+            ctx.fillRect(b.x, canvas.height - b.bottom, buildingWidth, b.bottom);
+            
+            // Neon Glow and borders for buildings
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = b.color;
+            ctx.strokeStyle = b.color;
+            ctx.lineWidth = 3;
+            ctx.strokeRect(b.x, 0, buildingWidth, b.top);
+            ctx.strokeRect(b.x, canvas.height - b.bottom, buildingWidth, b.bottom);
+            
+            // Reset shadow to draw windows without excessive overlapping glow
+            ctx.shadowBlur = 5;
+            ctx.fillStyle = b.color;
+
+            const windowWidth = 12;
+            const windowHeight = 16;
+            const padding = 12;
+
+            // Draw windows for top building
+            for(let wy = b.top - windowHeight - padding; wy > 0; wy -= (windowHeight + padding)) {
+                for(let wx = 0; wx < buildingWidth - padding; wx += (windowWidth + padding)) {
+                    // Simple static pseudo-random check to scatter windows without flickering
+                    if ((wy + wx + b.top) % 3 !== 0) {
+                        ctx.fillRect(b.x + padding + wx, wy, windowWidth, windowHeight);
+                    }
+                }
+            }
+
+            // Draw windows for bottom building
+            for(let wy = canvas.height - b.bottom + padding; wy < canvas.height - windowHeight; wy += (windowHeight + padding)) {
+                for(let wx = 0; wx < buildingWidth - padding; wx += (windowWidth + padding)) {
+                    // Simple static pseudo-random check to scatter windows without flickering
+                    if ((wy + wx + b.top) % 3 !== 0) {
+                        ctx.fillRect(b.x + padding + wx, wy, windowWidth, windowHeight);
+                    }
+                }
+            }
+            
+            // Reset shadow
+            ctx.shadowBlur = 0; 
+        });
+
+        // Player
+        ctx.save();
+        ctx.translate(player.x + player.width/2, player.y + player.height/2);
+        let rotation = Math.max(-0.4, Math.min(player.velocity * 0.08, 0.4)); 
+        ctx.rotate(rotation);
+        
+        // Neon Glow for player
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#ff0055";
+        
+        if(playerImg.complete && playerImg.naturalHeight !== 0) {
+            ctx.drawImage(playerImg, -player.width/2, -player.height/2, player.width, player.height);
+        } else {
+            // Placeholder neon color if image fails
+            ctx.fillStyle = "#ff0055";
+            ctx.fillRect(-player.width/2, -player.height/2, player.width, player.height);
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 2;
+            ctx.strokeRect(-player.width/2, -player.height/2, player.width, player.height);
+        }
+        ctx.restore();
+    }
+
+    function update() {
+        player.velocity += player.gravity;
+        player.y += player.velocity;
+
+        if (player.y + player.height > canvas.height || player.y < 0) {
+            triggerGameOver();
+            return;
+        }
+
+        for (let i = buildings.length - 1; i >= 0; i--) {
+            buildings[i].x -= currentSpeed; 
+
+            if (
+                player.x + 10 < buildings[i].x + buildingWidth &&
+                player.x + player.width - 10 > buildings[i].x &&
+                (player.y + 8 < buildings[i].top || player.y + player.height - 8 > canvas.height - buildings[i].bottom)
+            ) {
+                triggerGameOver();
+                return;
+            }
+
+            if (!buildings[i].passed && buildings[i].x < player.x) {
+                score++;
+                buildings[i].passed = true;
+                scoreElement.innerText = `Score: ${score}`;
+                currentSpeed = Math.min(4.5, 2 + (Math.floor(score / 5) * 0.4));
+                currentGap = Math.max(150, 200 - (Math.floor(score / 5) * 6));
+                spawnRate = Math.max(65, 130 - (Math.floor(score / 5) * 12));
+            }
+
+            if (buildings[i].x + buildingWidth < 0) buildings.splice(i, 1);
+        }
+
+        if (frameCount % spawnRate === 0) createBuilding();
+    }
+
+    function loop() {
+        if (!gameActive || isPaused) return;
+        update();
+        draw();
+        frameCount++;
+        animationId = requestAnimationFrame(loop);
+    }
+</script>
+</body>
+</html>
